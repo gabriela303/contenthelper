@@ -424,16 +424,13 @@ function getHoodSettings() {
 }
 
 // ── ADD URL FEATURE ──
-let analysedArticle = null;
 
 function openUrlModal() {
-  analysedArticle = null;
   document.getElementById('url-input').value = '';
   document.getElementById('url-status').textContent = '';
   document.getElementById('url-status').className = 'url-status';
-  document.getElementById('url-preview').classList.remove('show');
-  document.getElementById('url-save-btn').classList.remove('show');
   document.getElementById('url-fetch-btn').disabled = false;
+  document.getElementById('url-fetch-btn').textContent = 'Save ✸';
   document.getElementById('url-backdrop').classList.remove('hidden');
   setTimeout(() => document.getElementById('url-input').focus(), 80);
 }
@@ -450,9 +447,7 @@ async function fetchUrl() {
   }
   const fetchBtn = document.getElementById('url-fetch-btn');
   fetchBtn.disabled = true;
-  analysedArticle = null;
-  document.getElementById('url-preview').classList.remove('show');
-  document.getElementById('url-save-btn').classList.remove('show');
+  fetchBtn.textContent = 'Saving…';
   setUrlStatus('Fetching and analysing article…');
 
   try {
@@ -506,38 +501,25 @@ Return ONLY the JSON object.`;
     const s = clean.indexOf('{'), en = clean.lastIndexOf('}');
     if (s === -1 || en === -1) throw new Error('Could not parse article data. Try again.');
 
-    analysedArticle = JSON.parse(clean.slice(s, en + 1));
-
-    document.getElementById('url-preview-title').textContent = analysedArticle.title || '';
-    document.getElementById('url-preview-summary').textContent = analysedArticle.summary || '';
-    document.getElementById('url-preview-rating').textContent = analysedArticle.rating || '?';
-    document.getElementById('url-preview-pub').textContent = (analysedArticle.publication || '') + ' · ' + (analysedArticle.date || '');
-    document.getElementById('url-preview').classList.add('show');
-    document.getElementById('url-save-btn').classList.add('show');
-    setUrlStatus('Article analysed — review and save below.');
+    const article = JSON.parse(clean.slice(s, en + 1));
+    const uid = 'url_' + Date.now();
+    allSaved.unshift({
+      ...article,
+      id: uid,
+      _source: 'livefeed',
+      _savedAt: Date.now(),
+      _savedId: uid,
+      _addedByUrl: true
+    });
+    persist();
+    closeUrlModal();
+    render();
 
   } catch (err) {
     setUrlStatus(err.message || 'Something went wrong.', true);
-  } finally {
     fetchBtn.disabled = false;
+    fetchBtn.textContent = 'Save ✸';
   }
-}
-
-function saveAnalysed() {
-  if (!analysedArticle) return;
-  const uid = 'url_' + Date.now();
-  const toSave = {
-    ...analysedArticle,
-    id: uid,
-    _source: 'livefeed',
-    _savedAt: Date.now(),
-    _savedId: uid,
-    _addedByUrl: true
-  };
-  allSaved.unshift(toSave);
-  persist();
-  closeUrlModal();
-  render();
 }
 
 function setUrlStatus(msg, isError = false) {
@@ -558,18 +540,9 @@ function setUrlStatus(msg, isError = false) {
     <div class="url-modal-body">
       <div class="url-input-row">
         <input class="url-input" id="url-input" type="url" placeholder="https://..." />
-        <button class="url-fetch-btn" id="url-fetch-btn" onclick="fetchUrl()">Analyse ✸</button>
+        <button class="url-fetch-btn" id="url-fetch-btn" onclick="fetchUrl()">Save ✸</button>
       </div>
       <div class="url-status" id="url-status"></div>
-      <div class="url-preview" id="url-preview">
-        <div class="url-preview-title" id="url-preview-title"></div>
-        <div class="url-preview-summary" id="url-preview-summary"></div>
-        <div class="url-preview-meta">
-          <div class="url-preview-rating" id="url-preview-rating"></div>
-          <div class="url-preview-pub" id="url-preview-pub"></div>
-        </div>
-      </div>
-      <button class="url-save-btn" id="url-save-btn" onclick="saveAnalysed()">Save to archive</button>
     </div>
   </div>
 </div>
